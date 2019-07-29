@@ -15,13 +15,12 @@
  * between you and Broadleaf Commerce. You may not use this file except in compliance with the applicable license.
  * #L%
  */
-
+package org.broadleafcommerce.profile.web.core;
 
 import org.broadleafcommerce.common.util.BLCRequestUtils;
 import org.broadleafcommerce.common.web.BroadleafRequestContext;
 import org.broadleafcommerce.profile.core.domain.Customer;
 import org.broadleafcommerce.profile.core.domain.CustomerPersistedEvent;
-import org.broadleafcommerce.profile.web.core.CustomerState;
 import org.broadleafcommerce.profile.web.core.security.CustomerStateRequestProcessor;
 import org.springframework.context.ApplicationListener;
 import org.springframework.stereotype.Component;
