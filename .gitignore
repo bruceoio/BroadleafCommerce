@@ -12,3 +12,14 @@ bin/
 **/*maven-eclipse.xml
 **/*externalToolBuilders
 .sts4-cache
+.vscode/settings.json
+admin/broadleaf-admin-functional-tests/.factorypath
+admin/broadleaf-admin-module/.factorypath
+admin/broadleaf-contentmanagement-module/.factorypath
+admin/broadleaf-open-admin-platform/.factorypath
+common/.factorypath
+core/broadleaf-framework/.factorypath
+core/broadleaf-framework-web/.factorypath
+core/broadleaf-profile/.factorypath
+core/broadleaf-profile-web/.factorypath
+integration/.factorypath
