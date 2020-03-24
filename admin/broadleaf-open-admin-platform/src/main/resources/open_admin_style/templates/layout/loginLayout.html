@@ -10,15 +10,11 @@
 <!--[if gt IE 8]><!--> <html class="no-js" lang="en"> <!--<![endif]-->
 </th:block>
 
-<head>
-    <meta th:if="${#httpSession?.maxInactiveInterval != null and #httpSession?.maxInactiveInterval &gt; 0}"
-        http-equiv="refresh"
-        th:content="${#httpSession.maxInactiveInterval}"></meta>
-
-    <th:block th:include="layout/partials/head"></th:block>
-</head>
+<head th:replace="layout/partials/loginHead" ></head>
 
 <body class="login">
+    <blc:google_end_tag_manager></blc:google_end_tag_manager>
+
 
     <div class="login-box">
         <div class="logo">

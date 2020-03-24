@@ -400,8 +400,10 @@
             // update duration fields
             $("[data-fieldname='durationLabel']").find('.column-text').each(function () {
                 var parsed = parseInt($(this).data("fieldvalue"));
-                var day = moment.duration(parsed).format('h[h] m[m] s[s]');
-                $(this).html(day);
+                if (!isNaN(parsed)) {
+                    var day = moment.duration(parsed).format('h[h] m[m] s[s]');
+                    $(this).html(day);
+                }
             });
 
             // Run any additionally configured initialization handlers
@@ -1126,7 +1128,14 @@ $(document).ready(function () {
         if (onChangeTrigger) {
             var trigger = onChangeTrigger.split("-");
             if (trigger[0] == 'dynamicForm') {
-                $("div.dynamic-form-container[data-dynamicpropertyname='" + trigger[1] + "'] fieldset").remove();
+
+                if (trigger[1] == 'themeDefinition') {
+                    var $dynamicContainer = $("div.dynamic-form-container[data-dynamicpropertyname='themeDefinition']");
+                    var $idContainer = $("#fields\\'themeDefinition\\'\\.value");
+                    updateDynamicForm($dynamicContainer.data('currenturl') + '?propertyTypeId=' + $idContainer.val());
+                } else {
+                    $("div.dynamic-form-container[data-dynamicpropertyname='" + trigger[1] + "'] fieldset").remove();
+                }
             }
         }
 
@@ -1134,7 +1143,7 @@ $(document).ready(function () {
         return false;
     });
 
-    $('body').on('mouseover', 'td.row-action-selector', function (event) {
+    $('body').on('mouseover', 'td.row-act-selector', function (event) {
         $(this).find('ul.row-actions').show();
     });
 
@@ -1189,4 +1198,18 @@ function updateMultiSelectCheckbox($tbody, $listgridHeader) {
     } else {
         $listgridHeader.find("input[type=checkbox].multiselect-checkbox").prop('checked', false);
     }
+}
+
+function updateDynamicForm(url) {
+
+    BLC.ajax({
+        url: url,
+        type: "GET"
+    }, function (data) {
+        var dynamicPropertyName = data.find('div.dynamic-form-container').data('dynamicpropertyname');
+        var $oldDynamicContainer = $('div.dynamic-form-container[data-dynamicpropertyname="' + dynamicPropertyName + '"]');
+        var $newDynamicContainer = data.find('div.dynamic-form-container');
+        $oldDynamicContainer.replaceWith($newDynamicContainer);
+        BLCAdmin.initializeFields($newDynamicContainer);
+    });
 }

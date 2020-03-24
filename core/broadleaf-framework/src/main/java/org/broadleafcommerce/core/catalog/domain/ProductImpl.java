@@ -113,7 +113,9 @@ import javax.persistence.Transient;
 @org.hibernate.annotations.Table(appliesTo = "BLC_PRODUCT", indexes = {
         @Index(name = "PRODUCT_URL_INDEX",
                 columnNames = {"URL", "URL_KEY"}
-        )
+        ),
+        @Index(name = "PRODUCT_URL_KEY_INDEX",
+                columnNames = {"URL_KEY"})
 })
 @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
 @AdminPresentationMergeOverrides(
@@ -306,7 +308,7 @@ public class ProductImpl implements Product, ProductAdminPresentation, Status, A
     @Deprecated
     protected Category defaultCategory;
 
-    @OneToMany(targetEntity = CategoryProductXrefImpl.class, mappedBy = "product", orphanRemoval = true,
+    @OneToMany(targetEntity = CategoryProductXrefImpl.class, mappedBy = "product",
             cascade = {CascadeType.MERGE, CascadeType.PERSIST, CascadeType.REFRESH})
     @OrderBy(value = "displayOrder")
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
@@ -318,7 +320,7 @@ public class ProductImpl implements Product, ProductAdminPresentation, Status, A
             gridVisibleFields = {"name"})
     protected List<CategoryProductXref> allParentCategoryXrefs = new ArrayList<CategoryProductXref>();
 
-    @OneToMany(mappedBy = "product", targetEntity = ProductAttributeImpl.class, cascade = {CascadeType.ALL}, orphanRemoval = true)
+    @OneToMany(mappedBy = "product", targetEntity = ProductAttributeImpl.class, cascade = {CascadeType.ALL})
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
     @BatchSize(size = 50)
     @AdminPresentationCollection(friendlyName = "productAttributesTitle",

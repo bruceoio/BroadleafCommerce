@@ -1600,6 +1600,13 @@ public class AdminBasicEntityController extends AdminAbstractController {
                 populateTypeAndId = false;
             }
 
+            //For MappedCollections, we need to be specific on what ceilingEntity and translationId is used.
+            //It should be the entity and referenced Id of the value entity (not the target entity and Id).
+            if (entityForm.getCeilingEntityClassname() == null) {
+                entityForm.setCeilingEntityClassname(fmd.getValueClassName());
+            }
+            entityForm.setTranslationId(collectionItemId);
+            
             formService.populateEntityFormFields(entityForm, entity, populateTypeAndId, populateTypeAndId);
             formService.populateMapEntityFormFields(entityForm, entity);
             addAuditableDisplayFields(entityForm);
@@ -1774,6 +1781,10 @@ public class AdminBasicEntityController extends AdminAbstractController {
 
             ClassMetadata collectionMetadata = service.getClassMetadata(ppr).getDynamicResultSet().getClassMetaData();
             EntityForm entityForm = formService.createEntityForm(collectionMetadata, sectionCrumbs);
+            boolean listGridReadOnly = !rowLevelSecurityService.canUpdate(adminRemoteSecurityService.getPersistentAdminUser(), entity);
+            if(listGridReadOnly){
+                        throw new SecurityServiceException();
+            }
             if (!StringUtils.isEmpty(cd.getSortProperty())) {
                 Field f = new Field()
                         .withName(cd.getSortProperty())
