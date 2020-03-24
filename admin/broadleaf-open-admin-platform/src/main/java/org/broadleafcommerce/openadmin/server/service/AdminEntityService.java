@@ -25,6 +25,7 @@ import org.broadleafcommerce.openadmin.dto.CriteriaTransferObject;
 import org.broadleafcommerce.openadmin.dto.DynamicResultSet;
 import org.broadleafcommerce.openadmin.dto.Entity;
 import org.broadleafcommerce.openadmin.dto.FilterAndSortCriteria;
+import org.broadleafcommerce.openadmin.dto.PersistencePackage;
 import org.broadleafcommerce.openadmin.dto.Property;
 import org.broadleafcommerce.openadmin.dto.SectionCrumb;
 import org.broadleafcommerce.openadmin.server.domain.FetchPageRequest;
@@ -446,4 +447,15 @@ public interface AdminEntityService {
             List<SectionCrumb> sectionCrumb, String currentTabName)
             throws ServiceException;
 
+    void clearEntityManager();
+
+    /**
+     * Store parent record value, parent metadata to the {@link PersistencePackage}
+     *
+     * @param persistencePackage
+     * @param entity
+     * @param parentMetadata
+     * @return
+     */
+    public void populateParentRecordStructure(PersistencePackage persistencePackage, Entity entity, ClassMetadata parentMetadata);
 }

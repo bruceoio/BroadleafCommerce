@@ -189,8 +189,7 @@
                             if (ruleType !== BLCAdmin.RuleTypeEnum.RULE_WITH_QUANTITY) {
                                 jsonVal.data[i].quantity = null;
                             }
-                            BLCAdmin.ruleBuilders.constructQueryBuilder($ruleBuilderContainer, jsonVal.data[i],
-                                ruleBuilder.fields, ruleBuilder);
+                            BLCAdmin.ruleBuilders.constructQueryBuilder($ruleBuilderContainer, jsonVal.data[i], ruleBuilder.fields, ruleBuilder);
                         }
                     } else {
                         var qty = null;
@@ -198,8 +197,7 @@
                             qty = 1;
                         }
 
-                        BLCAdmin.ruleBuilders.constructQueryBuilder($ruleBuilderContainer, BLCAdmin.ruleBuilders.getEmptyRuleData(qty),
-                            ruleBuilder.fields, ruleBuilder);
+                        BLCAdmin.ruleBuilders.constructQueryBuilder($ruleBuilderContainer, BLCAdmin.ruleBuilders.getEmptyRuleData(qty), ruleBuilder.fields, ruleBuilder);
                     }
 
                     continue;
@@ -305,7 +303,7 @@
                 // in community, modal submit gets disabled when there is a validation error
                 $('.submit-button', $addEntityFormModal).prop('disabled', !this.getEntityFormChangesCount());
             }
-            
+
             // Grab all buttons we might want to enable/disable
             var $saveBtn = $('.sticky-container').find('.entity-form-actions').find('button.submit-button');
             var $promoteBtn = $('.sandbox-actions').find('.button a:contains("Promote")').parent();
@@ -533,11 +531,11 @@
             if (BLCAdmin.entityForm.status.getEntityFormChangesCount()) {
                 var message;
                 // If this is a `Promote` show the promote message
-                if ($(el).text() == 'Promote') {
+                if ($(el).text() === 'Promote') {
                     message = BLCAdmin.messages.promoteUnsavedChanges;
                 }
                 // Else, if this is an `Approve` show the approve message
-                else if ($(el).text() == 'Approve') {
+                else if ($(el).text() === 'Approve') {
                     message = BLCAdmin.messages.approveUnsavedChanges;
                 }
                 // Otherwise, this is another button on the ribbon, continue as normal
@@ -566,35 +564,50 @@
          * @returns {boolean}
          */
         checkIfShouldTrackChanges : function(el) {
-            // if changes are explcitly tracked on this input, track it
-            if ($(el).data('track-changes')) {
+            if (el) {
+                var $element = $(el);
+
+                // if changes are explcitly tracked on this input, track it
+                if ($element.data('track-changes')) {
+                    return true;
+                }
+
+                // if this element is in an OMS tab, we don't want to track
+                if ($element.closest('.oms-tab').length) {
+                    return false;
+                }
+
+                // Don't track if we are on an OMS page, in a modal, or not on a page with an entity form
+                if ($('.oms').length || this.isParentModal(el) || !$('.entity-form').length) {
+                    return false;
+                }
+
+                // If this is a Selectize Adder or Collection input, we don't want to track as changes are auto-saved
+                if ($element.closest('.selectize-adder').length ||  $element.closest('.selectize-collection').length) {
+                    return false;
+                }
+
+                // If this is a boolean-link, it is purely frontend related and not actually changing any values of import
+                if ($element.closest('.field-group').find('.boolean-link').length) {
+                    return false;
+                }
+
+                // Otherwise, track the changes
                 return true;
             }
-            
-            // if this element is in an OMS tab, we don't want to track
-            if (el !== undefined && $(el).closest('.oms-tab').length) {
-                return false;
-            }
 
-            // Don't track if we are on an OMS page, in a modal (except add entity modal) or not on a page with an entity form
-            if ((el !== undefined && $('.oms').length) ||
-                $(el).closest('.modal:not(:has(.modal-add-entity-form))').length ||
-                !$('.entity-form').length) {
-                return false;
-            }
+            return false;
+        },
 
-            // If this is a Selectize Adder or Collection input, we don't want to track as changes are auto-saved
-            if (el !== undefined && ($(el).closest('.selectize-adder').length || $(el).closest('.selectize-collection').length)) {
-                return false;
-            }
-
-            // If this is a boolean-link, it is purely frontend related and not actually changing any values of import
-            if (el !== undefined && $(el).closest('.field-group').find('.boolean-link').length) {
-                return false;
-            }
-
-            return true;
+        /**
+         * Checks if an element is a child of a modal
+         * @param el
+         * @returns {boolean}
+         */
+        isParentModal : function(el) {
+            return el && $(el).parents('.modal').length >= 1;
         }
+
     };
 })(jQuery, BLCAdmin);
 
@@ -672,7 +685,7 @@ $(document).ready(function() {
      * and presents a dialog asking if they are sure they want to leave.
      */
     $body.on('click', 'a.back-button, ul.nav-links a', function(event) {
-       BLCAdmin.entityForm.status.confirmLeaveEntityForm(this, event);
+        BLCAdmin.entityForm.status.confirmLeaveEntityForm(this, event);
     });
 
     /**

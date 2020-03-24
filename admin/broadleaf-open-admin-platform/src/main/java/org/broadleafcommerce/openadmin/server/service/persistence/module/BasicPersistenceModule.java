@@ -45,29 +45,13 @@ import org.broadleafcommerce.common.util.dao.TQOrder;
 import org.broadleafcommerce.common.util.dao.TQRestriction;
 import org.broadleafcommerce.common.util.dao.TypedQueryBuilder;
 import org.broadleafcommerce.common.web.BroadleafRequestContext;
-import org.broadleafcommerce.openadmin.dto.BasicFieldMetadata;
-import org.broadleafcommerce.openadmin.dto.CriteriaTransferObject;
-import org.broadleafcommerce.openadmin.dto.DynamicResultSet;
-import org.broadleafcommerce.openadmin.dto.Entity;
-import org.broadleafcommerce.openadmin.dto.EntityResult;
-import org.broadleafcommerce.openadmin.dto.FieldMetadata;
-import org.broadleafcommerce.openadmin.dto.FilterAndSortCriteria;
-import org.broadleafcommerce.openadmin.dto.ForeignKey;
-import org.broadleafcommerce.openadmin.dto.MergedPropertyType;
-import org.broadleafcommerce.openadmin.dto.PersistencePackage;
-import org.broadleafcommerce.openadmin.dto.PersistencePerspective;
-import org.broadleafcommerce.openadmin.dto.Property;
-import org.broadleafcommerce.openadmin.dto.SortDirection;
+import org.broadleafcommerce.openadmin.dto.*;
 import org.broadleafcommerce.openadmin.server.dao.provider.metadata.AdvancedCollectionFieldMetadataProvider;
 import org.broadleafcommerce.openadmin.server.service.ValidationException;
 import org.broadleafcommerce.openadmin.server.service.persistence.ParentEntityPersistenceException;
 import org.broadleafcommerce.openadmin.server.service.persistence.PersistenceException;
 import org.broadleafcommerce.openadmin.server.service.persistence.PersistenceManager;
-import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.CriteriaConversionException;
-import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.CriteriaTranslator;
-import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.FieldPath;
-import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.FilterMapping;
-import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.RestrictionFactory;
+import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.*;
 import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.converter.FilterValueConverter;
 import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.predicate.EqPredicateProvider;
 import org.broadleafcommerce.openadmin.server.service.persistence.module.criteria.predicate.LikePredicateProvider;
@@ -92,6 +76,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 
+import javax.annotation.PostConstruct;
+import javax.annotation.Resource;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -102,23 +88,8 @@ import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.StringTokenizer;
-
-import javax.annotation.PostConstruct;
-import javax.annotation.Resource;
-import javax.persistence.FlushModeType;
 
 /**
  * @author jfischer
@@ -340,7 +311,8 @@ public class BasicPersistenceModule implements PersistenceModule, RecordHelper, 
 
                     if (metadata.getFieldType().equals(SupportedFieldType.BOOLEAN)) {
                         if (value == null) {
-                            value = "false";
+                            String defaultValue = metadata.getDefaultValue();
+                            value = StringUtils.isBlank(defaultValue)? "false" : defaultValue;
                         }
                     } else if (metadata.getFieldType().equals(SupportedFieldType.DATE)) {
                         if (StringUtils.isEmpty(value)) {
@@ -410,6 +382,7 @@ public class BasicPersistenceModule implements PersistenceModule, RecordHelper, 
                 entityList.add(instance);
                 Entity invalid = getRecords(mergedProperties, entityList, null, null, null)[0];
                 invalid.setPropertyValidationErrors(entity.getPropertyValidationErrors());
+                invalid.setGlobalValidationErrors(entity.getGlobalValidationErrors());
                 invalid.overridePropertyValues(entity);
 
                 String message = ValidationUtil.buildErrorMessage(invalid.getPropertyValidationErrors(), invalid.getGlobalValidationErrors());
@@ -913,19 +886,20 @@ public class BasicPersistenceModule implements PersistenceModule, RecordHelper, 
     }
 
     protected void extractPropertiesFromMetadata(Class<?>[] inheritanceLine, Map<String, FieldMetadata> mergedProperties, List<Property> properties, Boolean isHiddenOverride, MergedPropertyType type) {
+        Comparator<Property> comparator = new Comparator<Property>() {
+
+            @Override
+            public int compare(Property o1, Property o2) {
+                return o1.getName().compareTo(o2.getName());
+            }
+        };
+        Collections.sort(properties, comparator);
         for (Map.Entry<String, FieldMetadata> entry : mergedProperties.entrySet()) {
             String property = entry.getKey();
             Property prop = new Property();
             FieldMetadata metadata = mergedProperties.get(property);
             prop.setName(property);
-            Comparator<Property> comparator = new Comparator<Property>() {
 
-                @Override
-                public int compare(Property o1, Property o2) {
-                    return o1.getName().compareTo(o2.getName());
-                }
-            };
-            Collections.sort(properties, comparator);
             int pos = Collections.binarySearch(properties, prop, comparator);
             if (pos >= 0 && MergedPropertyType.MAPSTRUCTUREKEY != type && MergedPropertyType.MAPSTRUCTUREVALUE != type) {
                 logWarn: {
@@ -936,8 +910,10 @@ public class BasicPersistenceModule implements PersistenceModule, RecordHelper, 
                     //LOG.warn("Detected a field name collision (" + metadata.getTargetClass() + "." + property + ") during inspection for the inheritance line starting with (" + inheritanceLine[0].getName() + "). Ignoring the additional field. This can occur most commonly when using the @AdminPresentationAdornedTargetCollection and the collection type and target class have field names in common. This situation should be avoided, as the system will strip the repeated fields, which can cause unpredictable behavior.");
                 }
                 continue;
+            } else if (pos < 0) {
+                pos = -pos - 1; // calculate position to insert
             }
-            properties.add(prop);
+            properties.add(pos, prop);
             prop.setMetadata(metadata);
             if (isHiddenOverride && prop.getMetadata() instanceof BasicFieldMetadata) {
                 //this only makes sense for non collection types

@@ -17,6 +17,9 @@
  */
 package org.broadleafcommerce.common.site.domain;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
+
 /**
  * Stores the path to the theme.
  * Created by bpolster.
@@ -26,11 +29,11 @@ public class ThemeDTO implements Theme {
     public String path = "";
     public String name = "";
     public Long id;
-    
+
     public ThemeDTO() {
         // empty constructor
     }
-    
+
     public ThemeDTO(String name, String path) {
         this.name = name;
         this.path = path;
@@ -60,4 +63,27 @@ public class ThemeDTO implements Theme {
         this.id = id;
     }
 
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+
+        if (o == null || !getClass().isAssignableFrom(o.getClass())) {
+            return false;
+        }
+
+        ThemeDTO themeDTO = (ThemeDTO) o;
+
+        return new EqualsBuilder()
+                .append(getId(), themeDTO.getId())
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder(17, 37)
+                .append(getId())
+                .toHashCode();
+    }
 }

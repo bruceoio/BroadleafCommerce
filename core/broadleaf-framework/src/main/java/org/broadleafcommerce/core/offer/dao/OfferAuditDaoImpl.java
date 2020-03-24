@@ -25,6 +25,8 @@ import org.broadleafcommerce.common.util.dao.TypedQueryBuilder;
 import org.broadleafcommerce.core.offer.domain.OfferAudit;
 import org.broadleafcommerce.core.offer.domain.OfferAuditImpl;
 import org.broadleafcommerce.core.order.domain.Order;
+import org.broadleafcommerce.core.order.domain.OrderImpl;
+import org.broadleafcommerce.core.order.service.type.OrderStatus;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -119,6 +121,7 @@ public class OfferAuditDaoImpl implements OfferAuditDao {
         CriteriaBuilder builder = em.getCriteriaBuilder();
         CriteriaQuery<Long> criteria = builder.createQuery(Long.class);
         Root<OfferAuditImpl> root = criteria.from(OfferAuditImpl.class);
+        Root<OrderImpl> orderRoot = criteria.from(OrderImpl.class);
         criteria.select(builder.count(root));
 
         Predicate customerOrAccountPredicate = null;
@@ -135,11 +138,16 @@ public class OfferAuditDaoImpl implements OfferAuditDao {
         List<Predicate> restrictions = new ArrayList<>();
         restrictions.add(
             builder.and(
-                        customerOrAccountPredicate, builder.equal(root.get("offerId"), offerId),
+                customerOrAccountPredicate, 
+                builder.equal(root.get("offerId"), offerId),
                 builder.or(
-                    builder.notEqual(root.get("orderId"),  getOrderId(order)),
-                    builder.isNull(root.get("orderId"))
-                        )
+                    builder.isNull(root.get("orderId")),
+                    builder.and(
+                        builder.notEqual(root.get("orderId"), getOrderId(order)),
+                        builder.notEqual(orderRoot.get("status"),OrderStatus.CANCELLED.getType()),
+                        builder.equal(orderRoot.get("id"),root.get("orderId"))
+                    )
+                )
             )
         );
 
@@ -184,6 +192,7 @@ public class OfferAuditDaoImpl implements OfferAuditDao {
         CriteriaBuilder builder = em.getCriteriaBuilder();
         CriteriaQuery<Long> criteria = builder.createQuery(Long.class);
         Root<OfferAuditImpl> root = criteria.from(OfferAuditImpl.class);
+        Root<OrderImpl> orderRoot = criteria.from(OrderImpl.class);
         criteria.select(builder.count(root));
 
         List<Predicate> restrictions = new ArrayList<>();
@@ -193,7 +202,14 @@ public class OfferAuditDaoImpl implements OfferAuditDao {
                     builder.notEqual(root.get("orderId"),  getOrderId(order)),
                     builder.isNull(root.get("orderId"))
                 ),
-                builder.equal(root.get("offerCodeId"), offerCodeId)
+                builder.equal(root.get("offerCodeId"), offerCodeId),
+                builder.or(
+                        builder.isNull(root.get("orderId")),
+                        builder.and(
+                                builder.notEqual(orderRoot.get("status"),OrderStatus.CANCELLED.getType()),
+                                builder.equal(orderRoot.get("id"),root.get("orderId"))
+                        )
+                )
             )
         );
 

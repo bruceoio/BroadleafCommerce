@@ -526,18 +526,26 @@
         },
 
         getActualRowIndex : function($tr) {
-            var trPlacementTop = $tr.position().top;
-            var rowHeight = this.getRowHeight($tr.closest('tbody'));
-            // The division should produce an integer, assuming the row heights are consistent.
-            return trPlacementTop / rowHeight;
+            var targetRow = $tr[0];
+            var rows = $tr.closest('tbody').find('tr');
+            for(var i = 0; i < rows.length; i++){
+                if(rows[i].isSameNode(targetRow)){
+                    return i;
+                }
+            }
         },
         
         getTopVisibleIndex : function($tbody) {
             if (typeof mcs === 'undefined') {
                 return 0;
             }
-            
-            var scrollOffset = $tbody.closest('.mCSB_container').position().top * -1;
+
+            var scrollOffset = 0;
+
+            if ($tbody.closest('.mCSB_container').position() != undefined) {
+                scrollOffset = $tbody.closest('.mCSB_container').position().top * -1;
+            }
+
             var trHeight = this.getRowHeight($tbody);
             var topVisibleIndex = scrollOffset / trHeight;
             var hiddenRowRemainder = topVisibleIndex % 1;
@@ -546,12 +554,24 @@
         },
         
         getBottomVisibleIndex : function($tbody) {
-            var scrollOffset = $tbody.closest('.mCSB_container').position().top * -1;
+
+            var scrollOffset = 0;
+
+            if ($tbody.closest('.mCSB_container').position() != undefined) {
+                scrollOffset = $tbody.closest('.mCSB_container').position().top * -1;
+            }
+
             var trHeight = this.getRowHeight($tbody);
             // Updated the code here to use the exact value (possibly float value) of
             // the listgrid body wrapper. Previously it would round this value which
             // led to inaccurate math.
-            var boundingRectHeight = $tbody.closest('.listgrid-body-wrapper')[0].getBoundingClientRect().height;
+
+            var boundingRectHeight = 0;
+
+            if ($tbody.closest('.listgrid-body-wrapper')[0] != undefined) {
+                boundingRectHeight = $tbody.closest('.listgrid-body-wrapper')[0].getBoundingClientRect().height;
+            }
+
             var bottomVisibleIndex = (scrollOffset + boundingRectHeight - trHeight) / trHeight;
             var visibleRowRemainder = bottomVisibleIndex % 1;
             return visibleRowRemainder > bottomRowVisiblePart ? Math.ceil(bottomVisibleIndex) : Math.floor(bottomVisibleIndex);
@@ -763,13 +783,22 @@
                 || ($table.data('listgridtype') === 'basic' && $table.closest('.folder-listgrid-container').length)
                 || ($table.data('listgridtype') === 'main' && $table.closest('.folder-items-container').length))  {
                 var $window = $(window);
-                var wrapperHeight = $window.height() - $wrapper.offset().top - 50;
+                var wrapperTopOffset = 0;
+
+                if ($wrapper.offset() != undefined) {
+                    wrapperTopOffset = $wrapper.offset().top;
+                }
+
+                var wrapperHeight = $window.height() - wrapperTopOffset - 50;
 
                 if ($modalBody.length > 0) {
                     wrapperHeight = $tbody.closest('.select-group').outerHeight();
                 }
 
-                wrapperHeight -= $wrapper.next('.listgrid-table-footer:visible').outerHeight();
+                var footerOuterHeight = $wrapper.next('.listgrid-table-footer:visible').outerHeight();
+                if (typeof footerOuterHeight !== "undefined") {
+                    wrapperHeight -= footerOuterHeight;
+                }
                 wrapperHeight = BLCAdmin.listGrid.paginate.computeActualMaxHeight($tbody, wrapperHeight);
 
                 $wrapper.css('max-height', wrapperHeight);
@@ -802,9 +831,11 @@
                     maxHeight -= $wrapper.parent().find('label').outerHeight(true);
                     maxHeight -= 5;
                 }
-                
-                if ($wrapper.closest('.listgrid-container').find('.listgrid-toolbar').length > 0) {
-                    maxHeight -= $wrapper.parent().find('.listgrid-toolbar').outerHeight(true);
+
+                closestListgridContainer = $wrapper.closest('.listgrid-container').find('.listgrid-toolbar');
+
+                if (closestListgridContainer.length > 0 && closestListgridContainer.outerHeight(true) !== undefined) {
+                    maxHeight -= closestListgridContainer.outerHeight(true);
                 }
                 
                 var minHeight = Math.max($wrapper.find('table tr:not(.width-control-header)').outerHeight() + 1, maxSubCollectionListGridHeight);;
@@ -812,7 +843,6 @@
                     maxHeight = minHeight;
                 }
                 
-                //maxHeight = BLCAdmin.listGrid.paginate.computeActualMaxHeight($tbody, maxHeight);
                 $wrapper.css('max-height', maxHeight);
                 $wrapper.find('.mCustomScrollBox').css('max-height', maxHeight);
                 $modalBody.css('overflow-y', 'auto');
@@ -859,7 +889,9 @@
             if (maxHeight < rowHeight) {
                 maxHeight = rowHeight;
             }
-            
+            if (maxHeight > desiredMaxHeight) {
+                maxHeight = desiredMaxHeight;
+            }
             return maxHeight;
         },
         

@@ -562,7 +562,8 @@
 
                                 $selectize.addOption({id: item, label: label});
                             }
-                            if (!isNaN(item)) {
+                            // leading 0s get stripped when converted to number
+                            if (!isNaN(item) && !String(item).startsWith('0')) {
                                 $selectize.addItem(Number(item), false);
                             } else {
                                 $selectize.addItem(item, false);
@@ -812,17 +813,19 @@
 
                 // If no data, set "No rules applied"
                 if (data == null || data.length == 0) {
-                    var noRules = $("<span>", {'class': 'readable-no-rule', 'html' : 'No rules applied yet,'});
+                    var noRules = $("<span>", {'class': 'readable-no-rule', 'html': 'No rules applied yet'});
 
-                    var addRules = $('<span>', {
-                        'data-hiddenId':  hiddenId,
-                        'data-ruleType': ruleBuilder.ruleType,
-                        'data-ruleTitleId': ruleBuilder.containerId + '-header',
-                        'html': '&nbsp;add some',
-                        'class': 'launch-modal-rule-builder launch-link'
-                    });
+                    if ($("#"+ hiddenId + "-rule-disabled").val() == "false") {
+                        var addRules = $('<span>', {
+                            'data-hiddenId': hiddenId,
+                            'data-ruleType': ruleBuilder.ruleType,
+                            'data-ruleTitleId': ruleBuilder.containerId + '-header',
+                            'html': ',&nbsp;add some',
+                            'class': 'launch-modal-rule-builder launch-link'
+                        });
 
-                    noRules.append(addRules);
+                        noRules.append(addRules);
+                    }
                     $(readableElement).append(noRules);
                     $(readableElement).parent().removeClass('can-edit');
                 // else fill in data

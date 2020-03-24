@@ -44,15 +44,15 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import javax.annotation.Resource;
-
-import net.sf.ehcache.Cache;
-import net.sf.ehcache.CacheManager;
+import javax.cache.Cache;
+import javax.cache.CacheManager;
 
 @Service("blTranslationService")
 public class TranslationServiceImpl implements TranslationService, TranslationSupport {
 
     protected static final Log LOG = LogFactory.getLog(TranslationServiceImpl.class);
     private static final Translation DELETED_TRANSLATION = new TranslationImpl();
+    private static final String TRANSLATION_CACHE_NAME = "blTranslationElements";
     
     @Resource(name = "blTranslationDao")
     protected TranslationDao dao;
@@ -63,8 +63,6 @@ public class TranslationServiceImpl implements TranslationService, TranslationSu
     @Resource(name="blSandBoxHelper")
     protected SandBoxHelper sandBoxHelper;
     
-    protected Cache cache;
-
     @Resource(name="blTranslationServiceExtensionManager")
     protected TranslationServiceExtensionManager extensionManager;
 
@@ -93,6 +91,11 @@ public class TranslationServiceImpl implements TranslationService, TranslationSu
 
     @Resource
     protected List<TranslationOverrideStrategy> strategies;
+    
+    @Resource(name = "blCacheManager")
+    protected CacheManager cacheManager;
+    
+    protected Cache<String, Object> cache;
     
     @Override
     @Transactional("blTransactionManager")
@@ -160,23 +163,35 @@ public class TranslationServiceImpl implements TranslationService, TranslationSu
     }
 
     @Override
-    public Cache getCache() {
+    public Cache<String, Object> getCache() {
         if (cache == null) {
-            cache = CacheManager.getInstance().getCache("blTranslationElements");
+            synchronized (this) {
+                if (cache == null) {
+                    cache = cacheManager.getCache(getCacheName());
+                }
+            }
         }
         return cache;
     }
 
+    protected String getCacheName() {
+        return TRANSLATION_CACHE_NAME;
+    }
+
     @Override
     public String getTranslatedValue(Object entity, String property, Locale locale) {
-        TranslatedEntity entityType = getEntityType(entity);
-        String entityId = dao.getEntityId(entityType, entity);
-
         String localeCode = locale.getLanguage();
         String localeCountryCode = localeCode;
         if (StringUtils.isNotBlank(locale.getCountry())) {
             localeCountryCode += "_" + locale.getCountry();
         }
+
+        if (!shouldTranslateLocale(localeCountryCode)) {
+            return null;
+        }
+
+        TranslatedEntity entityType = getEntityType(entity);
+        String entityId = dao.getEntityId(entityType, entity);
         
         if (TranslationBatchReadCache.hasCache()) {
             Translation translation = TranslationBatchReadCache.getFromCache(entityType, entityId, property, localeCountryCode);
@@ -206,6 +221,22 @@ public class TranslationServiceImpl implements TranslationService, TranslationSu
         }
 
         return getOverrideTranslatedValue(property, entityType, entityId, localeCode, localeCountryCode);
+    }
+
+    /**
+     * Whether translations should be gathered for the provided locale.
+     *
+     * @param localeCode
+     * @return Whether translations should be gathered for the provided locale.
+     */
+    protected boolean shouldTranslateLocale(String localeCode) {
+        org.broadleafcommerce.common.locale.domain.Locale locale = localeService.findLocaleByCode(localeCode);
+
+        if (locale == null) {
+            throw new IllegalArgumentException("A locale could not be found for the provided localeCode: "+ localeCode);
+        }
+
+        return !locale.getDefaultFlag();
     }
 
     @Override
@@ -381,6 +412,7 @@ public class TranslationServiceImpl implements TranslationService, TranslationSu
         return getEntityType(entity.getClass());
     }
     
+    @Override
     public TranslatedEntity getAssignableEntityType(String className) {
         try {
             Class<?> clazz = Class.forName(className);
@@ -451,7 +483,9 @@ public class TranslationServiceImpl implements TranslationService, TranslationSu
     public String getDefaultTranslationValue(Object entity, String property, Locale locale,
             String requestedDefaultValue) {
 
-        if (returnBlankTranslationForNotDefaultLocale && !localeMatchesDefaultLocale(locale) && !propertyInDefaultLocaleExceptionList(entity, property)) {
+        if (returnBlankTranslationForNotDefaultLocale
+                && !localeMatchesDefaultLocale(locale)
+                && !propertyInDefaultLocaleExceptionList(entity, property)) {
             return "";
         }
 

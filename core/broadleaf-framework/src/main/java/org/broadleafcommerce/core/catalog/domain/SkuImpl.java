@@ -18,6 +18,7 @@
 package org.broadleafcommerce.core.catalog.domain;
 
 import org.apache.commons.beanutils.MethodUtils;
+import org.apache.commons.collections.MapUtils;
 import org.apache.commons.collections.map.MultiValueMap;
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -75,12 +76,16 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import javax.persistence.CascadeType;
 import javax.persistence.CollectionTable;
@@ -343,7 +348,7 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
     protected Product product;
 
     @OneToMany(mappedBy = "sku", targetEntity = SkuAttributeImpl.class, cascade = { CascadeType.ALL }, orphanRemoval = true)
-    @Cache(usage=CacheConcurrencyStrategy.NONSTRICT_READ_WRITE, region="blProducts")
+    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
     @BatchSize(size = 50)
     @AdminPresentationCollection(friendlyName = "skuAttributesTitle",
             tab = TabName.Advanced, order = 1000)
@@ -923,12 +928,15 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
     @Override
     @Deprecated
     public Map<String, Media> getSkuMedia() {
-        if (legacySkuMedia.size() == 0) {
+        Map<String, Media> skuMediaMap = new LinkedHashMap<>(legacySkuMedia);
+
+        if (MapUtils.isEmpty(skuMediaMap)) {
             for (Map.Entry<String, SkuMediaXref> entry : getSkuMediaXref().entrySet()) {
-                legacySkuMedia.put(entry.getKey(), entry.getValue().getMedia());
+                skuMediaMap.put(entry.getKey(), entry.getValue().getMedia());
             }
         }
-        return Collections.unmodifiableMap(legacySkuMedia);
+
+        return Collections.unmodifiableMap(skuMediaMap);
     }
 
     @Override
@@ -943,22 +951,71 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
 
     @Override
     public Map<String, SkuMediaXref> getSkuMediaXref() {
-        if (skuMedia == null || skuMedia.isEmpty()) {
+        Map<String, SkuMediaXref> skuMediaMap = skuMedia;
+
+        if (MapUtils.isEmpty(skuMediaMap)) {
             if (hasDefaultSku()) {
                 return lookupDefaultSku().getSkuMediaXref();
             }
         }
-        return skuMedia;
+
+        if (isOrderedSkuMedia(skuMediaMap)) {
+            skuMediaMap = sortSkuMedia(skuMediaMap);
+        }
+
+        return skuMediaMap;
     }
 
     @Override
     public Map<String, SkuMediaXref> getSkuMediaXrefIgnoreDefaultSku() {
-        return skuMedia;
+        Map<String, SkuMediaXref> skuMediaMap = skuMedia;
+
+        if (isOrderedSkuMedia(skuMediaMap)) {
+            skuMediaMap = sortSkuMedia(skuMediaMap);
+        }
+
+        return skuMediaMap;
+    }
+
+    @Override
+    public Media getPrimarySkuMedia() {
+        Map<String, SkuMediaXref> skuMediaMap = getSkuMediaXrefIgnoreDefaultSku();
+
+        if (MapUtils.isNotEmpty(skuMediaMap)) {
+            if (isOrderedSkuMedia(skuMediaMap)) {
+                return skuMediaMap.values().stream()
+                        .map(OrderedSkuMediaXref.class::cast)
+                        .filter(OrderedSkuMediaXref::getShowInGallery)
+                        .findFirst()
+                        .map(SkuMediaXref.class::cast)
+                        .map(SkuMediaXref::getMedia)
+                        .orElse(null);
+            } else {
+                SkuMediaXref primaryXref = skuMediaMap.get("primary");
+
+                return (primaryXref == null)? null : primaryXref.getMedia();
+            }
+        }
+
+        return null;
     }
 
     @Override
     public void setSkuMediaXref(Map<String, SkuMediaXref> skuMediaXref) {
         this.skuMedia = skuMediaXref;
+    }
+
+    protected boolean isOrderedSkuMedia(Map<String, SkuMediaXref> skuMedia) {
+        return skuMedia.values().stream()
+                .anyMatch(OrderedSkuMediaXref.class::isInstance);
+    }
+
+    protected Map<String, SkuMediaXref> sortSkuMedia(Map<String, SkuMediaXref> skuMedia) {
+        return skuMedia.values().stream()
+                .sorted(Comparator.comparing(xref -> ((OrderedSkuMediaXref) xref).getDisplayOrder()))
+                .collect(Collectors.toMap(SkuMediaXref::getKey, Function.identity(),
+                        (key1,key2) ->{ throw new IllegalStateException(String.format("Duplicate key %s", key1)); },
+                        LinkedHashMap::new));
     }
 
     @Override
