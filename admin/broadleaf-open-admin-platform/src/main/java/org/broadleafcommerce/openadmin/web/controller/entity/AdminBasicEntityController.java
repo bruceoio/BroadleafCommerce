@@ -62,6 +62,7 @@ import org.broadleafcommerce.openadmin.server.service.persistence.extension.Ador
 import org.broadleafcommerce.openadmin.server.service.persistence.module.BasicPersistenceModule;
 import org.broadleafcommerce.openadmin.web.controller.AdminAbstractController;
 import org.broadleafcommerce.openadmin.web.controller.modal.ModalHeaderType;
+import org.broadleafcommerce.openadmin.web.dao.MultipleCatalogExtensionManager;
 import org.broadleafcommerce.openadmin.web.editor.NonNullBooleanEditor;
 import org.broadleafcommerce.openadmin.web.form.component.DefaultListGridActions;
 import org.broadleafcommerce.openadmin.web.form.component.ListGrid;
@@ -146,6 +147,9 @@ public class AdminBasicEntityController extends AdminAbstractController {
     
     @Resource(name = "blGenericEntityService")
     protected GenericEntityService genericEntityService;
+
+    @Resource(name = "blMultipleCatalogExtensionManager")
+    protected MultipleCatalogExtensionManager multipleCatalogExtensionManager;
 
     // ******************************************
     // REQUEST-MAPPING BOUND CONTROLLER METHODS *
@@ -488,6 +492,8 @@ public class AdminBasicEntityController extends AdminAbstractController {
 
         ClassMetadata cmd = service.getClassMetadata(ppr).getDynamicResultSet().getClassMetaData();
         Entity entity = service.getRecord(ppr, id, cmd, false).getDynamicResultSet().getRecords()[0];
+
+        multipleCatalogExtensionManager.getProxy().setCurrentCatalog(entity, model);
 
         Map<String, DynamicResultSet> subRecordsMap = getViewSubRecords(request, pathVars, cmd, entity, crumbs);
 
@@ -881,6 +887,22 @@ public class AdminBasicEntityController extends AdminAbstractController {
     }
 
 
+    @RequestMapping(
+            value = "/{id}/{collectionField:.*}/{collectionItemId}/view/{tab:[0-9]+}/{tabName}",
+            method = RequestMethod.POST
+    )
+    public String viewReadOnlyCollectionItemTab(HttpServletRequest request, HttpServletResponse response, Model model,
+                                        @PathVariable  Map<String, String> pathVars,
+                                        @PathVariable(value="id") String id,
+                                        @PathVariable(value="collectionField") String collectionField,
+                                        @PathVariable(value="collectionItemId") String collectionItemId,
+                                        @PathVariable(value="tabName") String tabName,
+                                        @ModelAttribute(value = "entityForm") EntityForm entityForm) throws Exception {
+
+        return showViewUpdateCollection(request, model, pathVars, id, collectionField, collectionItemId, ModalHeaderType.VIEW_COLLECTION_ITEM.getType(), entityForm, null);
+    }
+
+
     /**
      * Returns the records for a given collectionField filtered by a particular criteria
      *
@@ -1206,6 +1228,7 @@ public class AdminBasicEntityController extends AdminAbstractController {
         declareShouldIgnoreAdditionStatusFilter();
         Entity entity = service.getRecord(ppr, id, mainMetadata, false).getDynamicResultSet().getRecords()[0];
         service.clearEntityManager();
+
         // First, we must save the collection entity
         PersistenceResponse persistenceResponse = service.addSubCollectionEntity(entityForm, mainMetadata, collectionProperty, entity, sectionCrumbs);
         Entity savedEntity = persistenceResponse.getEntity();
@@ -1671,7 +1694,17 @@ public class AdminBasicEntityController extends AdminAbstractController {
                 entityForm.findField("priorKey").setValue(priorKey);
                 populateTypeAndId = false;
             }
-
+            try {
+                if (StringUtils.isNotEmpty(fmd.getToOneTargetProperty())) {
+                    entityForm.setTranslationCeilingEntity(Class.forName(fmd.getValueClassName()).getDeclaredField(fmd.getToOneTargetProperty()).getType().getName());
+                }
+            } catch (Exception e) {
+                LOG.error(e);
+            }
+            String entityId = (fmd.getToOneTargetProperty().equals("") ? "id" : fmd.getToOneTargetProperty() + ".id");
+            entityForm.setTranslationId(entity.getPMap().get(entityId).getValue());
+            formService.populateEntityFormFields(entityForm, entity, populateTypeAndId, populateTypeAndId);
+            formService.populateMapEntityFormFields(entityForm, entity);
             formService.populateEntityFormFields(entityForm, entity, populateTypeAndId, populateTypeAndId);
             formService.populateMapEntityFormFields(entityForm, entity);
             addAuditableDisplayFields(entityForm);
@@ -1865,6 +1898,10 @@ public class AdminBasicEntityController extends AdminAbstractController {
 
             ClassMetadata collectionMetadata = service.getClassMetadata(ppr).getDynamicResultSet().getClassMetaData();
             EntityForm entityForm = formService.createEntityForm(collectionMetadata, sectionCrumbs);
+            boolean listGridReadOnly = !rowLevelSecurityService.canUpdate(adminRemoteSecurityService.getPersistentAdminUser(), entity);
+            if(listGridReadOnly){
+                        throw new SecurityServiceException();
+            }
             if (!StringUtils.isEmpty(cd.getSortProperty())) {
                 Field f = new Field()
                         .withName(cd.getSortProperty())

@@ -100,8 +100,7 @@
             var seperator = rangeDescription.indexOf('-');
             var lo = Math.max(rangeDescription.substring(0, seperator), 0);
             var hi = Math.max(rangeDescription.substring(seperator + 1), 0);
-            rangeObj = {lo : parseInt(lo), hi : parseInt(hi)};
-            return rangeObj;
+            return {lo: parseInt(lo), hi: parseInt(hi)};
         },
         
         getLoadedRecordRanges : function($tbody) {
@@ -496,7 +495,7 @@
                     var topIndexLoaded = BLCAdmin.listGrid.paginate.isIndexLoaded($tbody, topIndex);
                     var botIndex = BLCAdmin.listGrid.paginate.getBottomVisibleIndex($tbody);
                     var botIndexLoaded = BLCAdmin.listGrid.paginate.isIndexLoaded($tbody, botIndex);
-                    if (!botIndexLoaded || !topIndexLoaded) {
+                    if ((!botIndexLoaded || !topIndexLoaded)&&(!$tbody.is(':visible'))) {
                         BLCAdmin.listGrid.paginate.loadRecords($tbody, baseUrl);
                     } else {
                         BLCAdmin.listGrid.hideLoadingSpinner($tbody);
@@ -536,7 +535,9 @@
         },
         
         getTopVisibleIndex : function($tbody) {
-            if (typeof mcs === 'undefined') {
+            //not sure why do we do this, but that's from legacy code
+            //probably check if mCustomScrollbar plugin was enabled for this table?
+            if (typeof $tbody.mCustomScrollbar === 'undefined') {
                 return 0;
             }
 
@@ -557,7 +558,7 @@
 
             var scrollOffset = 0;
 
-            if ($tbody.closest('.mCSB_container').position() != undefined) {
+            if ($tbody.closest('.mCSB_container').position() !== undefined) {
                 scrollOffset = $tbody.closest('.mCSB_container').position().top * -1;
             }
 
@@ -832,7 +833,7 @@
                     maxHeight -= 5;
                 }
 
-                closestListgridContainer = $wrapper.closest('.listgrid-container').find('.listgrid-toolbar');
+               var closestListgridContainer = $wrapper.closest('.listgrid-container').find('.listgrid-toolbar');
 
                 if (closestListgridContainer.length > 0 && closestListgridContainer.outerHeight(true) !== undefined) {
                     maxHeight -= closestListgridContainer.outerHeight(true);
@@ -989,20 +990,23 @@
                         
                         // Fetch records if necessary
                         $.doTimeout('fetch', fetchDebounce, function() {
-                        	var url = $tbody.closest('table').data('path');
+                            var url = $tbody.closest('table').data('path');
+                            //If this is modal and 'multitenant add' we use url from parent button
+                            var multitenantAdd = $('button.add-multitenant-main-entity').length === 1;
+                            if (multitenantAdd && inModal) {
+                                url = $('button.add-multitenant-main-entity').data('url');
+                            }
                             if ($container.data('parentid')) {
                                 url += "?parentId=" + $container.data('parentid');
-                                url += "&inModal=" + inModal;
-                            } else {
-                                url += "?inModal=" + inModal;
                             }
-
+                            var ampersand = url.indexOf('?') === -1 ? "?" : "&";
+                            url += ampersand + "inModal=" + inModal;
                             var sectionCrumbs = $tbody.closest('table').data('sectioncrumbs');
                             if (typeof sectionCrumbs !== 'undefined') {
                                 url += "&sectionCrumbs=" + sectionCrumbs;
                             }
 
-                            const urlEvent = $.Event('listGrid-paginate-lazy-load-url');
+                            var urlEvent = $.Event('listGrid-paginate-lazy-load-url');
                             $('body').trigger(urlEvent, [url, $tbody]);
                             url = urlEvent.resultUrl || url;
 

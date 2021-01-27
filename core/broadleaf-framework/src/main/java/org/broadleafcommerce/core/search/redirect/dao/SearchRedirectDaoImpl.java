@@ -39,6 +39,7 @@ import javax.persistence.criteria.Root;
 /**
  * Created by ppatel.
  */
+
 @Repository("blSearchRedirectDao")
 public class SearchRedirectDaoImpl implements SearchRedirectDao {
 
@@ -48,7 +49,9 @@ public class SearchRedirectDaoImpl implements SearchRedirectDao {
     @Value("${searchRedirect.is.null.activeStartDate.active:false}")
     protected boolean isNullActiveStartDateActive;
 
-    protected Long currentDateResolution = 10000L;
+    @Value("${query.dateResolution.searchredirect:10000}")
+    protected Long currentDateResolution;
+
     protected Date cachedDate = SystemTime.asDate();
 
     protected Date getCurrentDateAfterFactoringInDateResolution() {

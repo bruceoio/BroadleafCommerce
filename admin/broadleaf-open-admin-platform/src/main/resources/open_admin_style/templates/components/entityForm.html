@@ -58,6 +58,11 @@
                 <input type="hidden" th:field="*{sectionCrumbs}"  />
                 <input type="hidden" th:field="*{mainEntityName}" />
 
+                <input type="hidden" th:if="${catalogEntityCatalogDiscriminatorId!=null}" name="catalogEntityCatalogDiscriminatorId" th:value="${catalogEntityCatalogDiscriminatorId}">
+                <input type="hidden" name="preventSubmit" th:value="*{preventSubmit}" />
+                <input type="hidden" name="jsErrorMapString" th:value="*{jsErrorMap}" />
+
+
                 <div class="tabs-content" th:style="${verticalTabs}? 'margin-left: 250px;'">
                     <div th:each="tab, tabStat : ${entityForm.tabs}"
                          th:if="${tab.hasFieldOrListGrid()}"

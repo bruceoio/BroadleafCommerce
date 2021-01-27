@@ -301,7 +301,7 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
         defaultValue = "false")
     protected Boolean isMachineSortable;
 
-    @OneToMany(mappedBy = "sku", targetEntity = SkuMediaXrefImpl.class, cascade = { CascadeType.ALL }, orphanRemoval = true)
+    @OneToMany(mappedBy = "sku", targetEntity = SkuMediaXrefImpl.class, cascade = { CascadeType.ALL })
     @MapKey(name = "key")
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
     @BatchSize(size = 50)
@@ -332,8 +332,8 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
     /**
      * This will be non-null if and only if this Sku is the default Sku for a Product
      */
-    @OneToOne(optional = true, targetEntity = ProductImpl.class, cascade = {CascadeType.ALL})
-    @Cascade(value = {org.hibernate.annotations.CascadeType.ALL})
+    @OneToOne(optional = true, targetEntity = ProductImpl.class, cascade = {CascadeType.PERSIST, CascadeType.MERGE, CascadeType.REFRESH})
+    @Cascade(value = {org.hibernate.annotations.CascadeType.PERSIST,org.hibernate.annotations.CascadeType.MERGE, org.hibernate.annotations.CascadeType.REFRESH})
     @JoinColumn(name = "DEFAULT_PRODUCT_ID")
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
     @IgnoreEnterpriseBehavior
@@ -347,7 +347,7 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
     @JoinColumn(name = "ADDL_PRODUCT_ID")
     protected Product product;
 
-    @OneToMany(mappedBy = "sku", targetEntity = SkuAttributeImpl.class, cascade = { CascadeType.ALL }, orphanRemoval = true)
+    @OneToMany(mappedBy = "sku", targetEntity = SkuAttributeImpl.class, cascade = { CascadeType.ALL })
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
     @BatchSize(size = 50)
     @AdminPresentationCollection(friendlyName = "skuAttributesTitle",
@@ -421,7 +421,7 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
      * Normally null and hidden.  Use Meta-Data overrides to display in the admin.
      * @see Sku#getCurrency() for further cautions about using this field.
      */
-    @ManyToOne(targetEntity = BroadleafCurrencyImpl.class)
+    @ManyToOne(targetEntity = BroadleafCurrencyImpl.class, fetch = FetchType.LAZY)
     @JoinColumn(name = "CURRENCY_CODE")
     @AdminPresentation(friendlyName = "SkuImpl_Currency",
             group = GroupName.Advanced, order = 3000,
@@ -685,7 +685,7 @@ public class SkuImpl implements Sku, SkuAdminPresentation {
             purchaseCost = lookupDefaultSku().getCost();
         }
 
-        if (price != null && !price.getAmount().equals(BigDecimal.ZERO)) {
+        if (price != null && !(price.getAmount().compareTo(BigDecimal.ZERO)==0)) {
             if (purchaseCost != null) {
                 margin = price.subtract(purchaseCost).divide(price.getAmount());
             }

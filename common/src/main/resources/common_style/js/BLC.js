@@ -148,7 +148,20 @@ var BLC = (function($) {
                 options.url += "isPostAdd=true";
             }
         }
+        var savedCatalogElement = $('input[name ="catalogEntityCatalogDiscriminatorId"]');
+        var savedCatalog=null;
 
+        if(savedCatalogElement.length){
+            //0 should be the one we need, other can be from the modal form
+            savedCatalog = savedCatalogElement[0].value;
+            if(savedCatalog.length>0){
+                if(options.url.indexOf('?')>0){
+                    options.url+="&catalogEntityCatalogDiscriminatorId="+savedCatalog;
+                }else{
+                    options.url+="?catalogEntityCatalogDiscriminatorId="+savedCatalog;
+                }
+            }
+        }
         if (options.type.toUpperCase() == 'POST') {
             if (typeof options.data == 'string') {
                 if (options.data.indexOf('csrfToken') < 0) {
@@ -372,8 +385,11 @@ var BLC = (function($) {
         if (indexOfQ >= 0) {
             urlParams = baseUrl.substring(indexOfQ + 1);
             if (urlParams != null && urlParams != '') {
-                return JSON.parse('{"'
-                    + decodeURI(encodeURI(urlParams.replace(/&/g, "\",\"").replace(/=/g,"\":\""))) + '"}');
+                var params = decodeURI(encodeURI(urlParams.replace(/&/g, "\",\"").replace(/=/g, "\":\"")));
+                if (params.includes('|')) {
+                    params = params.replace(/\|/g, '%7C');
+                }
+                return JSON.parse('{"' + params + '"}');
             }
         }
         return {};
@@ -413,8 +429,16 @@ var BLC = (function($) {
         serializeObject : serializeObject,
         getUrlParameters : getUrlParameters,
         addUrlParam : addUrlParam,
+        addUrlQueryParam : addUrlQueryParam,
         buildUrlWithParams : buildUrlWithParams,
         servletContext : servletContext,
         siteBaseUrl : siteBaseUrl
     }
 })($);
+
+$("a.add-url-param-click").on('click', function () {
+    var param = $(this).attr('data-param');
+    var prop = $(this).attr('data-prop');
+    BLC.addUrlParam(document.location.search, prop, param);
+    return false;
+});

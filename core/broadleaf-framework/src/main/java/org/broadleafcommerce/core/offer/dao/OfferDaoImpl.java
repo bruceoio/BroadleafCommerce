@@ -32,6 +32,7 @@ import org.broadleafcommerce.core.offer.domain.OrderItemAdjustment;
 import org.broadleafcommerce.core.offer.domain.OrderItemPriceDetailAdjustment;
 import org.broadleafcommerce.core.offer.domain.ProratedOrderItemAdjustment;
 import org.hibernate.jpa.QueryHints;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;
@@ -58,7 +59,9 @@ public class OfferDaoImpl implements OfferDao {
     @Resource(name="blEntityConfiguration")
     protected EntityConfiguration entityConfiguration;
 
-    protected Long currentDateResolution = 10000L;
+    @Value("${query.dateResolution.offer:10000}")
+    protected Long currentDateResolution;
+
     protected Date cachedDate = SystemTime.asDate();
 
     protected Date getCurrentDateAfterFactoringInDateResolution() {

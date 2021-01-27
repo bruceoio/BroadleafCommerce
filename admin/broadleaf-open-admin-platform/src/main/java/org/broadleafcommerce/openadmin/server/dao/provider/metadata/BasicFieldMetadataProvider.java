@@ -860,6 +860,9 @@ public class BasicFieldMetadataProvider extends FieldMetadataProviderAdapter {
         if (basicFieldMetadata.getCanLinkToExternalEntity() != null) {
             metadata.setCanLinkToExternalEntity(basicFieldMetadata.getCanLinkToExternalEntity());
         }
+        if (basicFieldMetadata.getAllowNoValueEnumOption() != null) {
+            metadata.setAllowNoValueEnumOption(basicFieldMetadata.getAllowNoValueEnumOption());
+        }
 
         attributes.put(field.getName(), metadata);
     }
@@ -914,6 +917,10 @@ public class BasicFieldMetadataProvider extends FieldMetadataProviderAdapter {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void refreshDataDrivenEnumMetadata(BasicFieldMetadata metadata){
+        buildDataDrivenEnumList(metadata);
     }
 
     @Override

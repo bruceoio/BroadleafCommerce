@@ -146,7 +146,9 @@ public class BroadleafShippingInfoController extends AbstractCheckoutController 
         FulfillmentGroup shippableFulfillmentGroup = fulfillmentGroupService.getFirstShippableFulfillmentGroup(cart);
         if (shippableFulfillmentGroup != null) {
             shippableFulfillmentGroup.setAddress(shippingForm.getAddress());
-            shippableFulfillmentGroup.setPersonalMessage(shippingForm.getPersonalMessage());
+            if (shippingForm.getPersonalMessage() != null && shippingForm.getPersonalMessage().getMessage() != null) {
+                shippableFulfillmentGroup.setPersonalMessage(shippingForm.getPersonalMessage());
+            }
             shippableFulfillmentGroup.setDeliveryInstruction(shippingForm.getDeliveryMessage());
             FulfillmentOption fulfillmentOption = fulfillmentOptionService.readFulfillmentOptionById(shippingForm.getFulfillmentOptionId());
             shippableFulfillmentGroup.setFulfillmentOption(fulfillmentOption);
@@ -173,7 +175,7 @@ public class BroadleafShippingInfoController extends AbstractCheckoutController 
     protected void copyBillingAddressToShippingAddress(Order order, ShippingInfoForm shippingInfoForm) {
         if (order.getPayments() != null) {
             for (OrderPayment payment : order.getPayments()) {
-                if (payment.isActive() && PaymentType.CREDIT_CARD.equals(payment.getType())) {
+                if (payment.isActive() && payment.getType().isCreditCardType()) {
                     Address billing = payment.getBillingAddress();
                     if (billing != null) {
                         Address shipping = addressService.copyAddress(billing);
@@ -288,7 +290,9 @@ public class BroadleafShippingInfoController extends AbstractCheckoutController 
                 fulfillmentGroup = tempFulfillmentGroup;
             }
         }
-        fulfillmentGroup.setPersonalMessage(instructionForm.getPersonalMessage());
+        if (instructionForm.getPersonalMessage() != null && instructionForm.getPersonalMessage().getMessage() != null) {
+            fulfillmentGroup.setPersonalMessage(instructionForm.getPersonalMessage());
+        }
         fulfillmentGroup.setDeliveryInstruction(instructionForm.getDeliveryMessage());
         fulfillmentGroupService.save(fulfillmentGroup);
 

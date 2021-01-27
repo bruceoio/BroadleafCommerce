@@ -5939,7 +5939,9 @@
                     this.link.getData();
                     this.link.cleanUrl();
 
-                    if (this.link.target == '_blank') $('#redactor-link-blank').prop('checked', true);
+                    var linkCheckbox = $('#redactor-link-blank');
+                    if (this.link.target == '_blank') linkCheckbox.prop('checked', true);
+                    linkCheckbox.attr('data-orig-val', "")
 
                     this.link.$inputUrl = $('#redactor-link-url');
                     this.link.$inputText = $('#redactor-link-url-text');
@@ -8184,7 +8186,9 @@
                     if (tag.match(this.tabifier.lineBefore) || nl)
                     {
                         out = out.replace(/\s*$/, '');
-                        out += '\n';
+                        /* START BLC MODIFICATION */
+                        // out += '\n';
+                        /* END BLC MODIFICATION */
                     }
 
                     if (nl && '/' == tag.charAt(1)) this.tabifier.cleanlevel--;

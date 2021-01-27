@@ -31,7 +31,6 @@ import org.broadleafcommerce.common.sandbox.domain.SandBox;
 import org.broadleafcommerce.common.sandbox.domain.SandBoxType;
 import org.broadleafcommerce.common.sandbox.service.SandBoxService;
 import org.broadleafcommerce.common.security.service.StaleStateProtectionService;
-import org.broadleafcommerce.common.security.service.StaleStateServiceException;
 import org.broadleafcommerce.common.site.domain.Catalog;
 import org.broadleafcommerce.common.site.domain.Site;
 import org.broadleafcommerce.common.site.service.SiteService;
@@ -52,6 +51,7 @@ import org.broadleafcommerce.openadmin.server.security.service.AdminSecurityServ
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.stereotype.Component;
+import org.springframework.web.context.request.ServletWebRequest;
 import org.springframework.web.context.request.WebRequest;
 
 import java.util.ArrayList;
@@ -61,6 +61,7 @@ import java.util.Set;
 import java.util.TimeZone;
 
 import javax.annotation.Resource;
+import javax.servlet.http.HttpServletRequest;
 
 
 /**
@@ -181,7 +182,10 @@ public class BroadleafAdminRequestProcessor extends AbstractBroadleafWebRequestP
             if (BLCRequestUtils.isOKtoUseSession(request)) {
                 request.removeAttribute(PROFILE_REQ_PARAM, WebRequest.SCOPE_SESSION);
             }
-        } else {
+        }
+        //special case for AdvancedCMS EmailTemplate that will require profile in BRC to read EmailTemplate correctly
+        //well in theory we can do that on every request, but just to minimize DB calls
+        if (adminUser != null || ((ServletWebRequest) request).getRequest().getRequestURL().toString().contains("sendResetPassword")) {
             Site profile = null;
             if (StringUtils.isNotBlank(request.getParameter(PROFILE_REQ_PARAM))) {
                 Long profileId = Long.parseLong(request.getParameter(PROFILE_REQ_PARAM));
@@ -249,6 +253,13 @@ public class BroadleafAdminRequestProcessor extends AbstractBroadleafWebRequestP
                 String token = request.getParameter(staleStateProtectionService.getStateVersionTokenParameter());
                 staleStateProtectionService.compareToken(token);
                 staleStateProtectionService.invalidateState(true);
+            }else if(StringUtils.isNotBlank(request.getParameter("catalogEntityCatalogDiscriminatorId"))){
+                Long catalogId = Long.parseLong(request.getParameter("catalogEntityCatalogDiscriminatorId"));
+                catalog = siteService.findCatalogById(catalogId);
+                if (catalog == null) {
+                    throw new IllegalArgumentException(String.format("Unable to find the requested catalog: %s", catalogId));
+                }
+
             }
 
             if (catalog == null) {

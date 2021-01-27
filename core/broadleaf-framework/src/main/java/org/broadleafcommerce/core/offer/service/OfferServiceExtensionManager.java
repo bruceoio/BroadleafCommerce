@@ -115,6 +115,14 @@ public class OfferServiceExtensionManager extends ExtensionManager<OfferServiceE
         }
     };
 
+    public static final ExtensionManagerOperation removeOfferCodeFromOrder = new ExtensionManagerOperation() {
+        @Override
+        public ExtensionResultStatusType execute(ExtensionHandler handler, Object... params) {
+            return ((OfferServiceExtensionHandler) handler).removeOfferCodeFromOrder((OfferCode) params[0], (Order) params[1]);
+        }
+    };
+
+
     public OfferServiceExtensionManager() {
         super(OfferServiceExtensionHandler.class);
     }
@@ -168,6 +176,12 @@ public class OfferServiceExtensionManager extends ExtensionManager<OfferServiceE
     public ExtensionResultStatusType addAdditionalOffersForCode(List<Offer> offers, OfferCode offerCode) {
         return execute(addAdditionalOffersForCode, offers, offerCode);
     }
+
+    @Override
+    public ExtensionResultStatusType removeOfferCodeFromOrder(OfferCode offerCode, Order order) {
+        return execute(removeOfferCodeFromOrder, offerCode, order);
+    }
+
 
     @Override
     public boolean isEnabled() {

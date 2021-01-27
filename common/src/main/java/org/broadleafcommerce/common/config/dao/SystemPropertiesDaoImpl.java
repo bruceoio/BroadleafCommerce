@@ -21,6 +21,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.broadleafcommerce.common.cache.AbstractCacheMissAware;
 import org.broadleafcommerce.common.cache.PersistentRetrieval;
+import org.broadleafcommerce.common.config.domain.NullSystemProperty;
 import org.broadleafcommerce.common.config.domain.SystemProperty;
 import org.broadleafcommerce.common.config.domain.SystemPropertyImpl;
 import org.broadleafcommerce.common.extensibility.jpa.SiteDiscriminator;
@@ -65,6 +66,8 @@ public class SystemPropertiesDaoImpl extends AbstractCacheMissAware<SystemProper
     @Resource(name = "blSystemPropertyDaoQueryExtensionManager")
     protected SystemPropertyDaoQueryExtensionManager queryExtensionManager;
 
+    private SystemProperty nullObject;
+
     @Override
     public SystemProperty readById(Long id) {
         return em.find(SystemPropertyImpl.class, id);
@@ -95,7 +98,7 @@ public class SystemPropertiesDaoImpl extends AbstractCacheMissAware<SystemProper
                 queryExtensionManager.getProxy().refineOrder(SystemPropertyImpl.class, null, builder, criteria, handler, sorts);
             }
             criteria.where(restrictions.toArray(new Predicate[restrictions.size()]));
-            return em.createQuery(criteria).getResultList();
+            return em.createQuery(criteria).setHint(QueryHints.HINT_CACHEABLE, Boolean.TRUE).getResultList();
         } catch (NoResultException e) {
             LOG.error(e);
             return new ArrayList<SystemProperty>();
@@ -188,4 +191,13 @@ public class SystemPropertiesDaoImpl extends AbstractCacheMissAware<SystemProper
         }
         return site;
     }
+
+    @Override
+    protected synchronized SystemProperty getNullObject(final Class<SystemProperty> responseClass) {
+        if (nullObject == null) {
+            nullObject = new NullSystemProperty();
+        }
+        return nullObject;
+    }
+
 }

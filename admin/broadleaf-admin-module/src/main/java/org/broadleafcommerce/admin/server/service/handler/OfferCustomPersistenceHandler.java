@@ -18,24 +18,10 @@
 package org.broadleafcommerce.admin.server.service.handler;
 
 
-import java.math.BigDecimal;
-import java.text.DecimalFormat;
-import java.text.NumberFormat;
-import java.text.ParseException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-
-import javax.persistence.criteria.CriteriaBuilder;
-import javax.persistence.criteria.From;
-import javax.persistence.criteria.Path;
-import javax.persistence.criteria.Predicate;
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.broadleafcommerce.admin.server.service.extension.OfferCustomServiceExtensionManager;
 import org.broadleafcommerce.common.currency.domain.BroadleafCurrency;
 import org.broadleafcommerce.common.currency.util.BroadleafCurrencyUtils;
 import org.broadleafcommerce.common.exception.ExceptionHelper;
@@ -44,6 +30,7 @@ import org.broadleafcommerce.common.locale.domain.Locale;
 import org.broadleafcommerce.common.presentation.client.OperationType;
 import org.broadleafcommerce.common.presentation.client.SupportedFieldType;
 import org.broadleafcommerce.common.presentation.client.VisibilityEnum;
+import org.broadleafcommerce.common.sandbox.SandBoxHelper;
 import org.broadleafcommerce.common.time.SystemTime;
 import org.broadleafcommerce.common.util.DateUtil;
 import org.broadleafcommerce.common.web.BroadleafRequestContext;
@@ -74,6 +61,23 @@ import org.broadleafcommerce.openadmin.server.service.persistence.module.criteri
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
+import java.text.ParseException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.regex.Pattern;
+
+import javax.annotation.Resource;
+import javax.persistence.criteria.CriteriaBuilder;
+import javax.persistence.criteria.From;
+import javax.persistence.criteria.Path;
+import javax.persistence.criteria.Predicate;
+
 /**
  * Created by Jon on 11/23/15.
  */
@@ -94,6 +98,13 @@ public class OfferCustomPersistenceHandler extends ClassCustomPersistenceHandler
 
     @Value("${admin.offer.isactive.filter:false}")
     protected boolean isActiveFilter = false;
+
+
+    @Resource(name = "blOfferCustomServiceExtensionManager")
+    protected OfferCustomServiceExtensionManager extensionManager;
+
+    @Resource(name="blSandBoxHelper")
+    protected SandBoxHelper sandBoxHelper;
 
     public OfferCustomPersistenceHandler() {
         super(Offer.class);
@@ -209,7 +220,6 @@ public class OfferCustomPersistenceHandler extends ClassCustomPersistenceHandler
         Locale locale =  BroadleafRequestContext.getBroadleafRequestContext().getLocale();
         BroadleafCurrency currency =  BroadleafRequestContext.getBroadleafRequestContext().getBroadleafCurrency();
         NumberFormat nf = BroadleafCurrencyUtils.getNumberFormatFromCache(locale.getJavaLocale(), currency.getJavaCurrency());
-
         for (Entity entity : resultSet.getRecords()) {
             Property discountType = entity.findProperty("discountType");
             Property discountValue = entity.findProperty("value");
@@ -221,7 +231,14 @@ public class OfferCustomPersistenceHandler extends ClassCustomPersistenceHandler
                 value = !value.contains(".") ? value : value.replaceAll("0*$", "").replaceAll("\\.$", "");
                 discountValue.setValue(value + "%");
             } else if (discountType.getValue().equals("AMOUNT_OFF")) {
-                discountValue.setValue(nf.format(new BigDecimal(value)));
+                try {
+                    //ok, because we construct NumberFormat.getCurrencyInstance we need to end on "Currency" to parse
+                    Number parsedValue = nf.parse(((DecimalFormat) nf).getPositivePrefix()+value + ((DecimalFormat) nf).getPositiveSuffix());
+                    discountValue.setValue(nf.format(parsedValue));
+                } catch (ParseException e) {
+                    LOG.error(e);
+                    discountValue.setValue(nf.format(new BigDecimal(value)));
+                }
             }
 
             Property timeRule = entity.findProperty("offerMatchRules---TIME");
@@ -236,8 +253,11 @@ public class OfferCustomPersistenceHandler extends ClassCustomPersistenceHandler
 
             if (!"listGridView".equals(customCriteria)) {
                 String moneyPrefix = ((DecimalFormat) nf).getPositivePrefix();
+                String moneySuffix = ((DecimalFormat) nf).getPositiveSuffix();
                 String setValue = discountValue.getValue();
-                setValue = setValue.replaceAll("\\%", "").replaceAll(moneyPrefix, "");
+                setValue = setValue.replaceAll("\\%", "")
+                        .replaceAll(Pattern.quote(moneyPrefix), "")
+                        .replaceAll(Pattern.quote(moneySuffix), "");
                 discountValue.setValue(setValue);
             }
 
@@ -380,7 +400,11 @@ public class OfferCustomPersistenceHandler extends ClassCustomPersistenceHandler
             }
         }
 
+        if (!sandBoxHelper.isPromote()) {
+            extensionManager.getProxy().clearHiddenQualifiers(entity);
+        }
         Property qualifiersCanBeQualifiers = entity.findProperty(QUALIFIERS_CAN_BE_QUALIFIERS);
+        
         if (qualifiersCanBeQualifiers != null) {
             qualifiersCanBeQualifiers.setIsDirty(true);
         }

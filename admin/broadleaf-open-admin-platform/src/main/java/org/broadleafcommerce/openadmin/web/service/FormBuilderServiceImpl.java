@@ -29,6 +29,9 @@ import org.broadleafcommerce.common.exception.ExceptionHelper;
 import org.broadleafcommerce.common.exception.SecurityServiceException;
 import org.broadleafcommerce.common.exception.ServiceException;
 import org.broadleafcommerce.common.extension.ExtensionResultStatusType;
+import org.broadleafcommerce.common.i18n.domain.TranslatedEntity;
+import org.broadleafcommerce.common.i18n.service.TranslationService;
+import org.broadleafcommerce.common.locale.service.LocaleService;
 import org.broadleafcommerce.common.media.domain.MediaDto;
 import org.broadleafcommerce.common.persistence.EntityConfiguration;
 import org.broadleafcommerce.common.persistence.EntityDuplicator;
@@ -38,6 +41,7 @@ import org.broadleafcommerce.common.presentation.client.LookupType;
 import org.broadleafcommerce.common.presentation.client.PersistencePerspectiveItemType;
 import org.broadleafcommerce.common.presentation.client.SupportedFieldType;
 import org.broadleafcommerce.common.presentation.client.VisibilityEnum;
+import org.broadleafcommerce.common.security.service.ExploitProtectionService;
 import org.broadleafcommerce.common.util.BLCMessageUtils;
 import org.broadleafcommerce.common.util.FormatUtil;
 import org.broadleafcommerce.common.util.StringUtil;
@@ -97,6 +101,7 @@ import org.broadleafcommerce.openadmin.web.rulebuilder.dto.DataWrapper;
 import org.broadleafcommerce.openadmin.web.rulebuilder.dto.FieldDTO;
 import org.broadleafcommerce.openadmin.web.rulebuilder.dto.FieldWrapper;
 import org.codehaus.jettison.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.context.NoSuchMessageException;
 import org.springframework.stereotype.Service;
@@ -109,6 +114,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.text.DateFormat;
 import java.text.DateFormatSymbols;
+import java.text.DecimalFormat;
+import java.text.NumberFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -171,6 +178,18 @@ public class FormBuilderServiceImpl implements FormBuilderService {
     @Resource(name = "blDynamicEntityDao")
     protected DynamicEntityDao dynamicEntityDao;
 
+    @Resource(name = "blLocaleService")
+    protected LocaleService localeService;
+
+    @Resource(name = "blTranslationService")
+    protected TranslationService translationService;
+
+    @Value("${use.translation.search:false}")
+    protected boolean useTranslationSearch;
+
+    @Resource(name = "blExploitProtectionService")
+    ExploitProtectionService exploitProtectionService;
+
     protected static final VisibilityEnum[] FORM_HIDDEN_VISIBILITIES = new VisibilityEnum[] { 
             VisibilityEnum.HIDDEN_ALL, VisibilityEnum.FORM_HIDDEN
     };
@@ -208,6 +227,10 @@ public class FormBuilderServiceImpl implements FormBuilderService {
                     wrapper.getFields().add(constructFieldDTOFromFieldData(createHeaderField(p, fmd), fmd));
                 }
             }
+        }
+
+        if (useTranslationSearch) {
+            getTranslationSearchField(cmd.getCeilingType(), defaultWrapperFields);
         }
 
         ListGrid listGrid = createListGrid(cmd.getCeilingType(), headerFields, type, drs, sectionKey, 0, idProperty, sectionCrumbs);
@@ -248,6 +271,34 @@ public class FormBuilderServiceImpl implements FormBuilderService {
         return listGrid;
     }
 
+    private void getTranslationSearchField(String ceilingEntity, ArrayList<FieldDTO> defaultWrapperFields) {
+
+        TranslatedEntity translatedEntity;
+
+        try {
+            translatedEntity = translationService.getAssignableEntityType(ceilingEntity);
+
+            FieldDTO localeField = new FieldDTO();
+            localeField.setId("translationLocale");
+            localeField.setLabel("Translation locale");
+            localeField.setOperators("blcFilterOperators_Enumeration");
+            localeField.setInput("select");
+            localeField.setType("string");
+
+            List<org.broadleafcommerce.common.locale.domain.Locale> locales = localeService.findAllLocales();
+
+            Map<String, String> localeMap = new HashMap<String, String>();
+            for (org.broadleafcommerce.common.locale.domain.Locale l : locales) {
+                localeMap.put(l.getLocaleCode(), l.getFriendlyName());
+            }
+            localeField.setValues((new JSONObject(localeMap)).toString());
+
+            defaultWrapperFields.add(localeField);
+        } catch (Exception e) {
+            translatedEntity = null;
+        }
+    }
+
     protected FieldDTO constructFieldDTOFromFieldData(Field field, BasicFieldMetadata fmd) {
         FieldDTO fieldDTO = new FieldDTO();
         //translate the label to display
@@ -273,6 +324,12 @@ public class FormBuilderServiceImpl implements FormBuilderService {
             fieldDTO.setInput("select");
             fieldDTO.setType("string");
             String[][] enumerationValues = fmd.getEnumerationValues ();
+
+            //not sure if we need to decode here or not...
+            for(int i=0; i< enumerationValues.length;i++){
+                enumerationValues[i][1] = exploitProtectionService.htmlDecode(enumerationValues[i][1]);
+            }
+
             Map<String, String> enumMap = new HashMap<>();
             for (int i = 0; i < enumerationValues.length; i++) {
                 enumMap.put(enumerationValues[i][0], enumerationValues[i][1]);
@@ -304,7 +361,11 @@ public class FormBuilderServiceImpl implements FormBuilderService {
                 fmd.getFieldType().equals(SupportedFieldType.DATA_DRIVEN_ENUMERATION) ||
                 fmd.getFieldType().equals(SupportedFieldType.EMPTY_ENUMERATION)) {
             hf = new ComboField();
-            ((ComboField) hf).setOptions(fmd.getEnumerationValues());
+            String[][] enumerationValues = fmd.getEnumerationValues();
+            for(int i=0; i< enumerationValues.length;i++){
+                enumerationValues[i][1] = exploitProtectionService.htmlDecode(enumerationValues[i][1]);
+            }
+            ((ComboField) hf).setOptions(enumerationValues);
         } else {
             hf = new Field();
         }
@@ -732,6 +793,9 @@ public class FormBuilderServiceImpl implements FormBuilderService {
             //  "Locale" entity is a special occasion. Because it have not "ID" column with "Long" type
             } else if (e.findProperty("localeCode") != null) {
                 selectizeOption.put("id", e.findProperty("localeCode").getValue());
+                // BroadleafCurrency entity is a special occasion. Because it have not "ID" column with "Long" type
+            } else if (e.findProperty("currencyCode") != null) {
+                selectizeOption.put("id", e.findProperty("currencyCode").getValue());
             }
             if (e.findProperty(ALTERNATE_ID_PROPERTY) != null) {
                 selectizeOption.put("alternateId", e.findProperty(ALTERNATE_ID_PROPERTY).getValue());
@@ -956,7 +1020,12 @@ public class FormBuilderServiceImpl implements FormBuilderService {
                             || fieldType.equals(SupportedFieldType.EMPTY_ENUMERATION.toString())) {
                         // We're dealing with fields that should render as drop-downs, so set their possible values
                         f = new ComboField();
-                        ((ComboField) f).setOptions(fmd.getEnumerationValues());
+
+                        String[][] enumerationValues = fmd.getEnumerationValues();
+                        for(int i=0; enumerationValues!=null && i< enumerationValues.length;i++){
+                            enumerationValues[i][1] = exploitProtectionService.htmlDecode(enumerationValues[i][1]);
+                        }
+                        ((ComboField) f).setOptions(enumerationValues);
                         if (fmd.getHideEnumerationIfEmpty() != null && fmd.getHideEnumerationIfEmpty().booleanValue()
                                 && ((ComboField) f).getOptions().size() == 0) {
                             f.setIsVisible(false);
@@ -1219,8 +1288,9 @@ public class FormBuilderServiceImpl implements FormBuilderService {
             return null;
         } else if (fieldType.equals(SupportedFieldType.INTEGER.toString())) {
             try {
-                Integer.parseInt(defaultValue);
-            } catch (NumberFormatException  e) {
+                DecimalFormat numberFormat = (DecimalFormat) NumberFormat.getInstance(BroadleafRequestContext.getBroadleafRequestContext().getJavaLocale());
+                Number parse = numberFormat.parse(defaultValue);
+            } catch (NumberFormatException | ParseException e) {
                 String msg = buildMsgForDefValException(SupportedFieldType.INTEGER.toString(), fmd, defaultValue);
                 LOG.debug(msg);
                 return null;
@@ -1228,8 +1298,10 @@ public class FormBuilderServiceImpl implements FormBuilderService {
         } else if (fieldType.equals(SupportedFieldType.DECIMAL.toString())
                 || fieldType.equals(SupportedFieldType.MONEY.toString())) {
             try {
-                BigDecimal val = new BigDecimal(defaultValue);
-            } catch (NumberFormatException  e) {
+                DecimalFormat numberFormat = (DecimalFormat) NumberFormat.getInstance(BroadleafRequestContext.getBroadleafRequestContext().getJavaLocale());
+                numberFormat.setParseBigDecimal(true);
+                Number parse = numberFormat.parse(defaultValue);
+            } catch (NumberFormatException | ParseException e) {
                 String msg = buildMsgForDefValException(fieldType.toString(), fmd, defaultValue);
                 LOG.debug(msg);
                 return null;
@@ -1348,7 +1420,7 @@ public class FormBuilderServiceImpl implements FormBuilderService {
 
         Property p = entity.findProperty(BasicPersistenceModule.MAIN_ENTITY_NAME_PROPERTY);
         if (p != null) {
-            ef.setMainEntityName(p.getValue());
+            ef.setMainEntityName(exploitProtectionService.htmlDecode(p.getValue()));
         }
         
         extensionManager.getProxy().modifyPopulatedEntityForm(ef, entity);
@@ -1427,13 +1499,13 @@ public class FormBuilderServiceImpl implements FormBuilderService {
                             }
                         } 
                         if (basicFM.getFieldType() == SupportedFieldType.MEDIA) {
-                            field.setValue(entityProp.getValue());
+                            field.setValue(exploitProtectionService.htmlDecode(entityProp.getValue()));
                             field.setDisplayValue(entityProp.getDisplayValue());
                             MediaField mf = (MediaField) field;
                             Class<MediaDto> type = entityConfiguration.lookupEntityClass(MediaDto.class.getName(), MediaDto.class);
                             mf.setMedia(mediaBuilderService.convertJsonToMedia(entityProp.getUnHtmlEncodedValue(), type));
                         } else if (!SupportedFieldType.PASSWORD_CONFIRM.equals(basicFM.getExplicitFieldType())) {
-                            field.setValue(entityProp.getValue());
+                            field.setValue((basicFM.isLargeEntry() != null && basicFM.isLargeEntry()) ? entityProp.getValue() : exploitProtectionService.htmlDecode(entityProp.getValue()));
                             field.setDisplayValue(entityProp.getDisplayValue());
                         }
                     }

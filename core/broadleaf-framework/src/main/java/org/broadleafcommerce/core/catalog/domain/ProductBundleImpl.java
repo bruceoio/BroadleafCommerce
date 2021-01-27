@@ -17,6 +17,8 @@
  */
 package org.broadleafcommerce.core.catalog.domain;
 
+import org.apache.commons.lang3.builder.EqualsBuilder;
+import org.apache.commons.lang3.builder.HashCodeBuilder;
 import org.broadleafcommerce.common.copy.CreateResponse;
 import org.broadleafcommerce.common.copy.MultiTenantCopyContext;
 import org.broadleafcommerce.common.money.BankersRounding;
@@ -84,7 +86,7 @@ public class ProductBundleImpl extends ProductImpl implements ProductBundle {
     @AdminPresentation(excluded = true, friendlyName = "productBundlePriority", group="productBundleGroup")
     protected Integer priority=99;
 
-    @OneToMany(mappedBy = "bundle", targetEntity = SkuBundleItemImpl.class, cascade = { CascadeType.ALL },orphanRemoval = true)
+    @OneToMany(mappedBy = "bundle", targetEntity = SkuBundleItemImpl.class, cascade = { CascadeType.ALL })
     @OrderBy(value = "sequence")
     @Cache(usage = CacheConcurrencyStrategy.READ_WRITE, region = "blProducts")
     @BatchSize(size = 50)
@@ -269,5 +271,38 @@ public class ProductBundleImpl extends ProductImpl implements ProductBundle {
             cloned.getSkuBundleItems().add(item.createOrRetrieveCopyInstance(context).getClone());
         }
         return createResponse;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj == this) {
+            return true;
+        }
+        if (obj == null || !getClass().isAssignableFrom(obj.getClass())) {
+            return false;
+        }
+        ProductBundleImpl rhs = (ProductBundleImpl) obj;
+        return new EqualsBuilder()
+                .appendSuper(super.equals(obj))
+                .append(this.pricingModel, rhs.pricingModel)
+                .append(this.autoBundle, rhs.autoBundle)
+                .append(this.itemsPromotable, rhs.itemsPromotable)
+                .append(this.bundlePromotable, rhs.bundlePromotable)
+                .append(this.priority, rhs.priority)
+                .append(this.skuBundleItems, rhs.skuBundleItems)
+                .isEquals();
+    }
+
+    @Override
+    public int hashCode() {
+        return new HashCodeBuilder()
+                .appendSuper(super.hashCode())
+                .append(pricingModel)
+                .append(autoBundle)
+                .append(itemsPromotable)
+                .append(bundlePromotable)
+                .append(priority)
+                .append(skuBundleItems)
+                .toHashCode();
     }
 }

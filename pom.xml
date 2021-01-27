@@ -5,7 +5,7 @@
     <artifactId>broadleaf</artifactId>
     <packaging>pom</packaging>
     <name>BroadleafCommerce</name>
-    <version>6.1.1-SNAPSHOT</version>
+    <version>6.1.6-SNAPSHOT</version>
     <description>BroadleafCommerce Top Level Project</description>
     <url>http://www.broadleafcommerce.org</url>
     <licenses>
@@ -50,11 +50,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <ehcache3.version>3.6.3</ehcache3.version>
-        <spring.version>5.1.13.RELEASE</spring.version>
-        <spring.security.version>5.1.7.RELEASE</spring.security.version>
-        <spring.boot.version>2.1.12.RELEASE</spring.boot.version>
+        <spring.version>5.1.16.RELEASE</spring.version>
+        <spring.security.version>5.1.11.RELEASE</spring.security.version>
+        <spring.boot.version>2.1.15.RELEASE</spring.boot.version>
         <spring.mobile.version>2.0.0.M3</spring.mobile.version>
-        <jackson.version>2.9.8</jackson.version>
+        <jackson.version>2.11.3</jackson.version>
         <maven.source.plugin.version>2.4</maven.source.plugin.version>
         <geb.version>1.0</geb.version>
         <spock.core.version>1.1-groovy-2.4</spock.core.version>
@@ -63,14 +63,15 @@
         <project.uri>${project.baseUri}</project.uri>
         <groovy.version>2.4.15</groovy.version>
         <gpg.plugin.version>1.6</gpg.plugin.version>
-        <broadleaf-presentation.version>1.1.0-GA</broadleaf-presentation.version>
-        <lombok.version>1.18.4</lombok.version>
-        <database.starter.version>2.0.0-GA</database.starter.version>
+        <broadleaf-presentation.version>1.1.2-GA</broadleaf-presentation.version>
+        <lombok.version>1.18.0</lombok.version>
+        <database.starter.version>2.0.3-GA</database.starter.version>
+        <hsqldb.database.starter.version>2.0.2-GA</hsqldb.database.starter.version>
         <closure.compiler.version>v20180506</closure.compiler.version>
-        <hibernate.version>5.3.15.Final</hibernate.version>
+        <hibernate.version>5.3.20.Final</hibernate.version>
         <hibernate-validator.version>6.0.18.Final</hibernate-validator.version>
         <jaxb.version>2.3.0</jaxb.version>
-        <jaxws.version>2.3.0</jaxws.version>
+        <jaxws.version>2.3.1</jaxws.version>
         <javax-annotation.version>1.3.2</javax-annotation.version>
     </properties>
     <scm>
@@ -407,6 +408,12 @@
         </profile>
         <profile>
             <id>release-sign-artifacts</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
             <build>
                 <plugins>
                     <plugin>
@@ -434,39 +441,13 @@
             </build>
         </profile>
         <profile>
-            <!-- IMPORTANT -->
-            <!-- This relies on a gpg.passphrase property set either at build time or in a settings.xml. If within
-               a <profile><properties> section, that <profile><id> must match _exactly_ to this id for gpg.passphrase to be picked up.
-               You know you have messed up if, on signing, GPG signing fails with this message:
-                   "gpg: signing failed: Inappropriate ioctl for device" -->
-            <!-- Older versions of GPG (specifically versions older than 2.2) don't know about a pinentry-mode argument. As a
-                result, signing will fail. If we ever retire the old build server (that still needs GPG prior to 2.2 because of the older
-                version of Ubuntu and requirement to work with older builds -->
-            <id>release-sign-artifacts-old-gpg</id>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-gpg-plugin</artifactId>
-                        <version>${gpg.plugin.version}</version>
-                        <executions>
-                            <execution>
-                                <id>sign-artifacts</id>
-                                <phase>verify</phase>
-                                <goals>
-                                    <goal>sign</goal>
-                                </goals>
-                                <configuration>
-                                    <keyname>info@broadleafcommerce.org</keyname>
-                                </configuration>
-                            </execution>
-                        </executions>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
-        <profile>
             <id>javadocs</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
             <build>
                 <plugins>
                     <plugin>
@@ -502,6 +483,12 @@
         </profile>
         <profile>
             <id>sources</id>
+            <activation>
+                <property>
+                    <name>performRelease</name>
+                    <value>true</value>
+                </property>
+            </activation>
             <build>
                 <plugins>
                     <plugin>
@@ -515,7 +502,7 @@
                             <execution>
                                 <id>attach-sources</id>
                                 <goals>
-                                    <goal>jar-no-fork</goal>
+                                    <goal>jar</goal>
                                     <goal>test-jar</goal>
                                 </goals>
                             </execution>
@@ -531,6 +518,7 @@
             </activation>
             <properties>
                 <additionalparam>-Xdoclint:none</additionalparam>
+                <doclint>none</doclint>
             </properties>
         </profile>
     </profiles>
@@ -652,7 +640,7 @@
             <dependency>
                 <groupId>commons-beanutils</groupId>
                 <artifactId>commons-beanutils</artifactId>
-                <version>1.8.3</version>
+                <version>1.9.4</version>
             </dependency>
             <dependency>
                 <groupId>commons-cli</groupId>
@@ -682,7 +670,7 @@
             <dependency>
                 <groupId>commons-io</groupId>
                 <artifactId>commons-io</artifactId>
-                <version>2.6</version>
+                <version>2.8.0</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
@@ -810,7 +798,7 @@
             <dependency>
                 <groupId>junit</groupId>
                 <artifactId>junit</artifactId>
-                <version>4.12</version>
+                <version>4.13.1</version>
                 <scope>test</scope>
             </dependency>
             <dependency>
@@ -885,6 +873,10 @@
                         <groupId>com.fasterxml.jackson</groupId>
                         <artifactId>jackson-core</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>org.codehaus.woodstox</groupId>
+                        <artifactId>stax2-api</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
 
@@ -919,7 +911,7 @@
             <dependency>
                 <groupId>org.quartz-scheduler</groupId>
                 <artifactId>quartz</artifactId>
-                <version>2.3.0</version>
+                <version>2.3.2</version>
                 <type>jar</type>
                 <scope>compile</scope>
             </dependency>
@@ -945,6 +937,7 @@
                 <groupId>org.ehcache</groupId>
                 <artifactId>ehcache</artifactId>
                 <version>${ehcache3.version}</version>
+                <optional>true</optional>
             </dependency>
 
             <!--Spring Libraries -->
@@ -1237,7 +1230,7 @@
             <dependency>
                 <groupId>org.owasp.esapi</groupId>
                 <artifactId>esapi</artifactId>
-                <version>2.1.0.1</version>
+                <version>2.2.0.0</version>
                 <exclusions>
                     <exclusion>
                         <groupId>commons-fileupload</groupId>
@@ -1272,7 +1265,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>22.0</version>
+                <version>24.1.1-jre</version>
             </dependency>
             <dependency>
                 <groupId>de.jkeylockmanager</groupId>
